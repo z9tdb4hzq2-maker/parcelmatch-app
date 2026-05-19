@@ -306,33 +306,23 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/">
-          {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
-          ) : (
-            <Image
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
-          )}
-        </Link>
+<Link href="/" className="flex items-center gap-3">
+  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 text-lg font-bold text-white">
+    P
+  </div>
+
+  {(isExpanded || isHovered || isMobileOpen) && (
+    <div className="flex flex-col">
+      <span className="text-lg font-bold text-gray-900 dark:text-white">
+        ParcelMatch
+      </span>
+
+      <span className="text-xs text-gray-500 dark:text-gray-400">
+        Intelligence Platform
+      </span>
+    </div>
+  )}
+</Link>
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
