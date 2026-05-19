@@ -32,28 +32,33 @@ const navItems: NavItem[] = [
     name: "Dashboard",
     path: "/",
   },
+
   {
     icon: <TableIcon />,
     name: "Rechnungen",
     path: "/invoices",
   },
+
   {
     icon: <BoxCubeIcon />,
     name: "Sendungen",
     path: "/shipments",
   },
+
   {
-    icon: <ListIcon />,
+    icon: <PageIcon />,
     name: "Verträge",
     path: "/contracts",
   },
+
   {
     icon: <PieChartIcon />,
     name: "Matching",
     path: "/matching",
   },
+
   {
-    icon: <PageIcon />,
+    icon: <CalenderIcon />,
     name: "Claims",
     path: "/claims",
   },
@@ -65,26 +70,31 @@ const othersItems: NavItem[] = [
     name: "Billing",
     path: "/billing",
   },
+
   {
-    icon: <CalenderIcon />,
+    icon: <ListIcon />,
     name: "Insights",
     path: "/insights",
   },
+
   {
     icon: <PlugInIcon />,
     name: "Execution",
     path: "/execution",
   },
+
   {
     icon: <BoxCubeIcon />,
     name: "Marketplace",
     path: "/marketplace",
   },
+
   {
     icon: <PlugInIcon />,
     name: "Integrationen",
     path: "/integrations",
   },
+
   {
     icon: <UserCircleIcon />,
     name: "Einstellungen",
