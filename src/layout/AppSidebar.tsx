@@ -30,67 +30,65 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/", pro: false }],
+    path: "/",
   },
   {
-    icon: <CalenderIcon />,
-    name: "Calendar",
-    path: "/calendar",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "User Profile",
-    path: "/profile",
-  },
-
-  {
-    name: "Forms",
-    icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-  },
-  {
-    name: "Tables",
     icon: <TableIcon />,
-    subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
+    name: "Rechnungen",
+    path: "/invoices",
   },
   {
-    name: "Pages",
+    icon: <BoxCubeIcon />,
+    name: "Sendungen",
+    path: "/shipments",
+  },
+  {
+    icon: <ListIcon />,
+    name: "Verträge",
+    path: "/contracts",
+  },
+  {
+    icon: <PieChartIcon />,
+    name: "Matching",
+    path: "/matching",
+  },
+  {
     icon: <PageIcon />,
-    subItems: [
-      { name: "Blank Page", path: "/blank", pro: false },
-      { name: "404 Error", path: "/error-404", pro: false },
-    ],
+    name: "Claims",
+    path: "/claims",
   },
 ];
 
 const othersItems: NavItem[] = [
   {
     icon: <PieChartIcon />,
-    name: "Charts",
-    subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
-    ],
+    name: "Billing",
+    path: "/billing",
   },
   {
-    icon: <BoxCubeIcon />,
-    name: "UI Elements",
-    subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
-    ],
+    icon: <CalenderIcon />,
+    name: "Insights",
+    path: "/insights",
   },
   {
     icon: <PlugInIcon />,
-    name: "Authentication",
-    subItems: [
-      { name: "Sign In", path: "/signin", pro: false },
-      { name: "Sign Up", path: "/signup", pro: false },
-    ],
+    name: "Execution",
+    path: "/execution",
+  },
+  {
+    icon: <BoxCubeIcon />,
+    name: "Marketplace",
+    path: "/marketplace",
+  },
+  {
+    icon: <PlugInIcon />,
+    name: "Integrationen",
+    path: "/integrations",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Einstellungen",
+    path: "/settings",
   },
 ];
 
@@ -348,7 +346,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Menu"
+                  "ParcelMatch"
                 ) : (
                   <HorizontaLDots />
                 )}
@@ -365,7 +363,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
+                  "Plattform"
                 ) : (
                   <HorizontaLDots />
                 )}
