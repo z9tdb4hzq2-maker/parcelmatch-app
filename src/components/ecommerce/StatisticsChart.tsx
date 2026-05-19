@@ -40,95 +40,94 @@ export default function StatisticsChart() {
 
   const options: ApexOptions = {
     legend: {
-      show: false, // Hide legend
+      show: true,
       position: "top",
       horizontalAlign: "left",
     },
-    colors: ["#465FFF", "#9CB9FF"], // Define line colors
+    colors: ["#465FFF", "#12B76A", "#F04438"],
     chart: {
       fontFamily: "Outfit, sans-serif",
       height: 310,
-      type: "line", // Set the chart type to 'line'
+      type: "line",
       toolbar: {
-        show: false, // Hide chart toolbar
+        show: false,
       },
     },
     stroke: {
-      curve: "straight", // Define the line style (straight, smooth, or step)
-      width: [2, 2], // Line width for each dataset
+      curve: "smooth",
+      width: [3, 3, 3],
     },
-
     fill: {
       type: "gradient",
       gradient: {
-        opacityFrom: 0.55,
+        opacityFrom: 0.5,
         opacityTo: 0,
       },
     },
     markers: {
-      size: 0, // Size of the marker points
-      strokeColors: "#fff", // Marker border color
+      size: 0,
+      strokeColors: "#fff",
       strokeWidth: 2,
       hover: {
-        size: 6, // Marker size on hover
+        size: 6,
       },
     },
     grid: {
       xaxis: {
         lines: {
-          show: false, // Hide grid lines on x-axis
+          show: false,
         },
       },
       yaxis: {
         lines: {
-          show: true, // Show grid lines on y-axis
+          show: true,
         },
       },
     },
     dataLabels: {
-      enabled: false, // Disable data labels
+      enabled: false,
     },
     tooltip: {
-      enabled: true, // Enable tooltip
-      x: {
-        format: "dd MMM yyyy", // Format for x-axis tooltip
+      enabled: true,
+      y: {
+        formatter: (val: number) => `${val}`,
       },
     },
     xaxis: {
-      type: "category", // Category-based x-axis
+      type: "category",
       categories: [
         "Jan",
         "Feb",
-        "Mar",
+        "Mrz",
         "Apr",
-        "May",
+        "Mai",
         "Jun",
         "Jul",
         "Aug",
         "Sep",
-        "Oct",
+        "Okt",
         "Nov",
-        "Dec",
+        "Dez",
       ],
       axisBorder: {
-        show: false, // Hide x-axis border
+        show: false,
       },
       axisTicks: {
-        show: false, // Hide x-axis ticks
+        show: false,
       },
       tooltip: {
-        enabled: false, // Disable tooltip for x-axis points
+        enabled: false,
       },
     },
     yaxis: {
       labels: {
         style: {
-          fontSize: "12px", // Adjust font size for y-axis labels
-          colors: ["#6B7280"], // Color of the labels
+          fontSize: "12px",
+          colors: ["#6B7280"],
         },
       },
       title: {
-        text: "", // Remove y-axis title
+        text: "",
         style: {
           fontSize: "0px",
         },
@@ -138,33 +137,39 @@ export default function StatisticsChart() {
 
   const series = [
     {
-      name: "Sales",
-      data: [180, 190, 170, 160, 175, 165, 170, 205, 230, 210, 240, 235],
+      name: "Matching-Quote %",
+      data: [62, 66, 69, 71, 74, 78, 81, 84, 86, 88, 91, 93],
     },
     {
-      name: "Revenue",
-      data: [40, 30, 50, 40, 55, 40, 70, 100, 110, 120, 150, 140],
+      name: "Claim Recovery",
+      data: [12, 18, 16, 22, 25, 28, 31, 36, 42, 46, 51, 57],
+    },
+    {
+      name: "Billing Exceptions",
+      data: [48, 44, 41, 39, 37, 34, 31, 29, 25, 22, 18, 15],
     },
   ];
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
-      <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
+      <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:justify-between">
         <div className="w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Statistics
+            Performance & Audit Entwicklung
           </h3>
-          <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            Target you've set for each month
+          <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
+            Matching-Quote, Claim Recovery und Billing Exceptions über Zeit.
           </p>
         </div>
+
         <div className="flex items-center gap-3 sm:justify-end">
           <ChartTab />
           <div className="relative inline-flex items-center">
-            <CalenderIcon className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:left-3 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2  text-gray-500 dark:text-gray-400 pointer-events-none z-10" />
+            <CalenderIcon className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 lg:left-3 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2" />
             <input
               ref={datePickerRef}
-              className="h-10 w-10 lg:w-40 lg:h-auto  lg:pl-10 lg:pr-3 lg:py-2 rounded-lg border border-gray-200 bg-white text-sm font-medium text-transparent lg:text-gray-700 outline-none dark:border-gray-700 dark:bg-gray-800 dark:lg:text-gray-300 cursor-pointer"
-              placeholder="Select date range"
+              className="h-10 w-10 cursor-pointer rounded-lg border border-gray-200 bg-white text-sm font-medium text-transparent outline-none dark:border-gray-700 dark:bg-gray-800 lg:h-auto lg:w-40 lg:px-3 lg:py-2 lg:pl-10 lg:text-gray-700 dark:lg:text-gray-300"
+              placeholder="Zeitraum wählen"
             />
           </div>
         </div>
