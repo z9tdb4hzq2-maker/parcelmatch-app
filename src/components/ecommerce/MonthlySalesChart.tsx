@@ -6,18 +6,18 @@ import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { useState } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 
-// Dynamically import the ReactApexChart component
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
 });
 
 export default function MonthlySalesChart() {
   const options: ApexOptions = {
-    colors: ["#465fff"],
+    colors: ["#465fff", "#12b76a", "#f79009"],
     chart: {
       fontFamily: "Outfit, sans-serif",
       type: "bar",
-      height: 180,
+      height: 220,
+      stacked: true,
       toolbar: {
         show: false,
       },
@@ -25,7 +25,7 @@ export default function MonthlySalesChart() {
     plotOptions: {
       bar: {
         horizontal: false,
-        columnWidth: "39%",
+        columnWidth: "42%",
         borderRadius: 5,
         borderRadiusApplication: "end",
       },
@@ -35,23 +35,23 @@ export default function MonthlySalesChart() {
     },
     stroke: {
       show: true,
-      width: 4,
+      width: 3,
       colors: ["transparent"],
     },
     xaxis: {
       categories: [
         "Jan",
         "Feb",
-        "Mar",
+        "Mrz",
         "Apr",
-        "May",
+        "Mai",
         "Jun",
         "Jul",
         "Aug",
         "Sep",
-        "Oct",
+        "Okt",
         "Nov",
-        "Dec",
+        "Dez",
       ],
       axisBorder: {
         show: false,
@@ -67,8 +67,8 @@ export default function MonthlySalesChart() {
       fontFamily: "Outfit",
     },
     yaxis: {
-      title: {
-        text: undefined,
+      labels: {
+        formatter: (value) => `€${Math.round(value)}k`,
       },
     },
     grid: {
@@ -81,22 +81,31 @@ export default function MonthlySalesChart() {
     fill: {
       opacity: 1,
     },
-
     tooltip: {
       x: {
-        show: false,
+        show: true,
       },
       y: {
-        formatter: (val: number) => `${val}`,
+        formatter: (val: number) => `€${val}k`,
       },
     },
   };
+
   const series = [
     {
-      name: "Sales",
-      data: [168, 385, 201, 298, 187, 195, 291, 110, 215, 390, 280, 112],
+      name: "FRT",
+      data: [82, 91, 88, 96, 102, 98, 104, 111, 116, 122, 118, 126],
+    },
+    {
+      name: "FSC",
+      data: [11, 12, 10, 13, 14, 13, 15, 16, 17, 18, 17, 19],
+    },
+    {
+      name: "ACC",
+      data: [18, 21, 19, 24, 26, 23, 27, 31, 32, 34, 33, 36],
     },
   ];
+
   const [isOpen, setIsOpen] = useState(false);
 
   function toggleDropdown() {
@@ -110,42 +119,43 @@ export default function MonthlySalesChart() {
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-          Monthly Sales
-        </h3>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+            Kostenentwicklung nach Monat
+          </h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Aufteilung nach FRT, FSC und ACC.
+          </p>
+        </div>
 
         <div className="relative inline-block">
           <button onClick={toggleDropdown} className="dropdown-toggle">
             <MoreDotIcon className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-300" />
           </button>
-          <Dropdown
-            isOpen={isOpen}
-            onClose={closeDropdown}
-            className="w-40 p-2"
-          >
+          <Dropdown isOpen={isOpen} onClose={closeDropdown} className="w-44 p-2">
             <DropdownItem
               onItemClick={closeDropdown}
-              className="flex w-full font-normal text-left text-gray-500 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
+              className="flex w-full rounded-lg text-left font-normal text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
             >
-              View More
+              Details öffnen
             </DropdownItem>
             <DropdownItem
               onItemClick={closeDropdown}
-              className="flex w-full font-normal text-left text-gray-500 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
+              className="flex w-full rounded-lg text-left font-normal text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
             >
-              Delete
+              Export vorbereiten
             </DropdownItem>
           </Dropdown>
         </div>
       </div>
 
       <div className="max-w-full overflow-x-auto custom-scrollbar">
-        <div className="-ml-5 min-w-[650px] xl:min-w-full pl-2">
+        <div className="-ml-5 min-w-[650px] pl-2 xl:min-w-full">
           <ReactApexChart
             options={options}
             series={series}
             type="bar"
-            height={180}
+            height={220}
           />
         </div>
       </div>
