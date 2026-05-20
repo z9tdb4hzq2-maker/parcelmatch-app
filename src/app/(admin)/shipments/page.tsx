@@ -5,8 +5,10 @@ import { supabase } from "@/lib/supabase";
 import Badge from "@/components/ui/badge/Badge";
 
 type UploadRelation = {
+  id: string;
   file_name: string;
   carrier: string;
+  file_path: string | null;
 };
 
 type Shipment = {
@@ -28,92 +30,155 @@ type Shipment = {
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("");
 
+  const [invoiceFilter, setInvoiceFilter] = useState("");
   const [customerFilter, setCustomerFilter] = useState("");
   const [serviceFilter, setServiceFilter] = useState("");
   const [countryFilter, setCountryFilter] = useState("");
-  const [uploadFilter, setUploadFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [trackingFilter, setTrackingFilter] = useState("");
+
+  async function loadShipments() {
+    setLoading(true);
+
+    const { data } = await supabase
+      .from("shipments")
+      .select(`
+        id,
+        upload_id,
+        tracking_number,
+        customer_number,
+        service_name,
+        destination_country,
+        frt_amount,
+        fsc_amount,
+        acc_amount,
+        total_amount,
+        matching_status,
+        claim_status,
+        uploads (
+          id,
+          file_name,
+          carrier,
+          file_path
+        )
+      `)
+      .order("created_at", { ascending: false })
+      .limit(1000);
+
+    setShipments((data ?? []) as Shipment[]);
+    setLoading(false);
+  }
 
   useEffect(() => {
-    async function loadShipments() {
-      const { data, error } = await supabase
-        .from("shipments")
-        .select(`
-          id,
-          upload_id,
-          tracking_number,
-          customer_number,
-          service_name,
-          destination_country,
-          frt_amount,
-          fsc_amount,
-          acc_amount,
-          total_amount,
-          matching_status,
-          claim_status,
-          uploads (
-            file_name,
-            carrier
-          )
-        `)
-        .order("created_at", { ascending: false })
-        .limit(500);
-
-      if (!error && data) {
-        setShipments(data as Shipment[]);
-      }
-
-      setLoading(false);
-    }
-
     loadShipments();
   }, []);
 
-  const customers = unique(shipments.map((s) => s.customer_number));
-  const services = unique(shipments.map((s) => s.service_name));
-  const countries = unique(shipments.map((s) => s.destination_country));
-  const uploadFiles = unique(
+  const invoiceOptions = unique(
     shipments.map((s) => s.uploads?.[0]?.file_name ?? null)
   );
+  const customerOptions = unique(shipments.map((s) => s.customer_number));
+  const serviceOptions = unique(shipments.map((s) => s.service_name));
+  const countryOptions = unique(shipments.map((s) => s.destination_country));
+  const statusOptions = unique(shipments.map((s) => s.matching_status));
 
   const filteredShipments = useMemo(() => {
     return shipments.filter((shipment) => {
-      const uploadFileName = shipment.uploads?.[0]?.file_name ?? null;
+      const invoiceName = shipment.uploads?.[0]?.file_name ?? "";
 
       return (
+        (!invoiceFilter || invoiceName === invoiceFilter) &&
         (!customerFilter || shipment.customer_number === customerFilter) &&
         (!serviceFilter || shipment.service_name === serviceFilter) &&
         (!countryFilter || shipment.destination_country === countryFilter) &&
-        (!uploadFilter || uploadFileName === uploadFilter)
+        (!statusFilter || shipment.matching_status === statusFilter) &&
+        (!trackingFilter ||
+          shipment.tracking_number
+            .toLowerCase()
+            .includes(trackingFilter.toLowerCase()))
       );
     });
-  }, [shipments, customerFilter, serviceFilter, countryFilter, uploadFilter]);
+  }, [
+    shipments,
+    invoiceFilter,
+    customerFilter,
+    serviceFilter,
+    countryFilter,
+    statusFilter,
+    trackingFilter,
+  ]);
 
   const total = filteredShipments.reduce(
     (sum, s) => sum + Number(s.total_amount ?? 0),
     0
   );
-
   const frt = filteredShipments.reduce(
     (sum, s) => sum + Number(s.frt_amount ?? 0),
     0
   );
-
   const fsc = filteredShipments.reduce(
     (sum, s) => sum + Number(s.fsc_amount ?? 0),
     0
   );
-
   const acc = filteredShipments.reduce(
     (sum, s) => sum + Number(s.acc_amount ?? 0),
     0
   );
 
   function clearFilters() {
+    setInvoiceFilter("");
     setCustomerFilter("");
     setServiceFilter("");
     setCountryFilter("");
-    setUploadFilter("");
+    setStatusFilter("");
+    setTrackingFilter("");
+  }
+
+  async function deleteSelectedInvoice() {
+    if (!invoiceFilter) {
+      setStatus("Bitte zuerst eine Rechnung auswählen.");
+      return;
+    }
+
+    const selectedShipment = shipments.find(
+      (shipment) => shipment.uploads?.[0]?.file_name === invoiceFilter
+    );
+
+    const upload = selectedShipment?.uploads?.[0];
+
+    if (!upload?.id) {
+      setStatus("Keine Upload-Zuordnung gefunden.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Rechnung inklusive aller zugehörigen Sendungen löschen?\n\n${invoiceFilter}`
+    );
+
+    if (!confirmed) return;
+
+    setStatus("Rechnung und Sendungen werden gelöscht...");
+
+    if (upload.file_path) {
+      await supabase.storage
+        .from("parcelmatch-uploads")
+        .remove([upload.file_path]);
+    }
+
+    const { error } = await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", upload.id);
+
+    if (error) {
+      setStatus(`Löschen fehlgeschlagen: ${error.message}`);
+      return;
+    }
+
+    setStatus("Rechnung und zugehörige Sendungen wurden gelöscht.");
+    clearFilters();
+    await loadShipments();
   }
 
   return (
@@ -124,60 +189,96 @@ export default function ShipmentsPage() {
         </p>
 
         <h1 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
-          Sendungen aus Upload-Dateien
+          Globale Sendungsübersicht
         </h1>
 
         <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500 dark:text-gray-400">
-          Jede Sendung ist einer hochgeladenen Datei zugeordnet. Du kannst nach
-          Kundennummer, Serviceart, Zielland und Upload-Datei filtern.
+          Alle aus Rechnungsdateien erkannten Sendungen mit Rechnungsbezug,
+          Kundennummer, Service-Code, Zielland und Gebührenstruktur.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
         <Metric label="Sendungen" value={String(filteredShipments.length)} />
         <Metric label="FRT" value={`€${frt.toFixed(2)}`} />
         <Metric label="FSC" value={`€${fsc.toFixed(2)}`} />
         <Metric label="ACC" value={`€${acc.toFixed(2)}`} />
+        <Metric label="Gesamt" value={`€${total.toFixed(2)}`} />
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
+          <SelectFilter
+            label="Rechnung"
+            value={invoiceFilter}
+            options={invoiceOptions}
+            onChange={setInvoiceFilter}
+          />
+
           <SelectFilter
             label="Kundennummer"
             value={customerFilter}
-            options={customers}
+            options={customerOptions}
             onChange={setCustomerFilter}
           />
 
           <SelectFilter
-            label="Serviceart"
+            label="Service-Code"
             value={serviceFilter}
-            options={services}
+            options={serviceOptions}
             onChange={setServiceFilter}
           />
 
           <SelectFilter
             label="Zielland"
             value={countryFilter}
-            options={countries}
+            options={countryOptions}
             onChange={setCountryFilter}
           />
 
           <SelectFilter
-            label="Upload / Rechnung"
-            value={uploadFilter}
-            options={uploadFiles}
-            onChange={setUploadFilter}
+            label="Status"
+            value={statusFilter}
+            options={statusOptions}
+            onChange={setStatusFilter}
           />
 
-          <div className="flex items-end">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Tracking
+            </label>
+            <input
+              value={trackingFilter}
+              onChange={(e) => setTrackingFilter(e.target.value)}
+              placeholder="Tracking suchen"
+              className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={clearFilters}
-              className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
             >
               Filter zurücksetzen
             </button>
+
+            <button
+              onClick={deleteSelectedInvoice}
+              disabled={!invoiceFilter}
+              className="rounded-lg border border-error-300 px-4 py-2.5 text-sm font-medium text-error-600 hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Ausgewählte Rechnung löschen
+            </button>
           </div>
+
+          {status ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {status}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -196,11 +297,12 @@ export default function ShipmentsPage() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-gray-100 bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
               <tr>
-                <th className="px-6 py-3">Upload / Rechnung</th>
+                <th className="px-6 py-3">Rechnung</th>
+                <th className="px-6 py-3">Carrier</th>
                 <th className="px-6 py-3">Tracking</th>
                 <th className="px-6 py-3">Kundennr.</th>
-                <th className="px-6 py-3">Service</th>
-                <th className="px-6 py-3">Land</th>
+                <th className="px-6 py-3">Service-Code</th>
+                <th className="px-6 py-3">Zielland</th>
                 <th className="px-6 py-3">FRT</th>
                 <th className="px-6 py-3">FSC</th>
                 <th className="px-6 py-3">ACC</th>
@@ -213,7 +315,7 @@ export default function ShipmentsPage() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     className="px-6 py-8 text-center text-gray-500"
                   >
                     Lade Sendungen...
@@ -222,10 +324,10 @@ export default function ShipmentsPage() {
               ) : filteredShipments.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     className="px-6 py-8 text-center text-gray-500"
                   >
-                    Keine Sendungen für diese Filter gefunden.
+                    Keine Sendungen gefunden.
                   </td>
                 </tr>
               ) : (
@@ -234,18 +336,15 @@ export default function ShipmentsPage() {
 
                   return (
                     <tr key={shipment.id}>
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {upload?.file_name ?? "-"}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {upload?.carrier ?? ""}
-                          </p>
-                        </div>
+                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                        {upload?.file_name ?? "-"}
                       </td>
 
-                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                        {upload?.carrier ?? "-"}
+                      </td>
+
+                      <td className="px-6 py-4 font-medium text-brand-600">
                         {shipment.tracking_number}
                       </td>
 
@@ -314,7 +413,7 @@ function SelectFilter({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+        className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
       >
         <option value="">Alle</option>
         {options.map((option) => (
