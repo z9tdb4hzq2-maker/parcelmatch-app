@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Badge from "@/components/ui/badge/Badge";
@@ -34,6 +34,12 @@ export default function InvoiceDetailPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [openShipmentId, setOpenShipmentId] = useState<string | null>(null);
 
+  const [trackingFilter, setTrackingFilter] = useState("");
+  const [customerFilter, setCustomerFilter] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
   useEffect(() => {
     async function loadInvoice() {
       const { data: uploadData } = await supabase
@@ -57,10 +63,76 @@ export default function InvoiceDetailPage() {
     loadInvoice();
   }, [params.id]);
 
-  const total = useMemo(
+  const customerNumbers = unique(shipments.map((s) => s.customer_number));
+  const serviceNames = unique(shipments.map((s) => s.service_name));
+  const countries = unique(shipments.map((s) => s.destination_country));
+  const statuses = unique(shipments.map((s) => s.matching_status));
+
+  const invoiceCustomerSummary =
+    customerNumbers.length === 0
+      ? "-"
+      : customerNumbers.length === 1
+      ? customerNumbers[0]
+      : `${customerNumbers.length} Kundennummern`;
+
+  const filteredShipments = useMemo(() => {
+    return shipments.filter((shipment) => {
+      const matchesTracking =
+        !trackingFilter ||
+        shipment.tracking_number
+          .toLowerCase()
+          .includes(trackingFilter.toLowerCase());
+
+      const matchesCustomer =
+        !customerFilter || shipment.customer_number === customerFilter;
+
+      const matchesService =
+        !serviceFilter || shipment.service_name === serviceFilter;
+
+      const matchesCountry =
+        !countryFilter || shipment.destination_country === countryFilter;
+
+      const matchesStatus =
+        !statusFilter || shipment.matching_status === statusFilter;
+
+      return (
+        matchesTracking &&
+        matchesCustomer &&
+        matchesService &&
+        matchesCountry &&
+        matchesStatus
+      );
+    });
+  }, [
+    shipments,
+    trackingFilter,
+    customerFilter,
+    serviceFilter,
+    countryFilter,
+    statusFilter,
+  ]);
+
+  const invoiceTotal = useMemo(
     () => shipments.reduce((sum, s) => sum + Number(s.total_amount ?? 0), 0),
     [shipments]
   );
+
+  const filteredTotal = useMemo(
+    () =>
+      filteredShipments.reduce(
+        (sum, s) => sum + Number(s.total_amount ?? 0),
+        0
+      ),
+    [filteredShipments]
+  );
+
+  function clearFilters() {
+    setTrackingFilter("");
+    setCustomerFilter("");
+    setServiceFilter("");
+    setCountryFilter("");
+    setStatusFilter("");
+  }
 
   if (!upload) {
     return (
@@ -81,14 +153,15 @@ export default function InvoiceDetailPage() {
           Rechnungszusammenfassung
         </h1>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-5">
           <Summary label="Rechnung" value={upload.file_name} />
           <Summary label="Carrier" value={upload.carrier} />
+          <Summary label="Kundennummer" value={invoiceCustomerSummary} />
           <Summary
             label="Rechnungsdatum"
             value={new Date(upload.created_at).toLocaleDateString("de-DE")}
           />
-          <Summary label="Rechnungsbetrag" value={`€${total.toFixed(2)}`} />
+          <Summary label="Rechnungsbetrag" value={`€${invoiceTotal.toFixed(2)}`} />
         </div>
       </div>
 
@@ -102,10 +175,66 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
 
-        <div className="px-6 py-4">
+        <div className="border-b border-gray-100 px-6 py-5 dark:border-gray-800">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Trackingnummern dieser Rechnung
           </h2>
+
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {filteredShipments.length} von {shipments.length} Sendungen ·
+            gefilterte Summe: €{filteredTotal.toFixed(2)}
+          </p>
+
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-6">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Trackingnummer
+              </label>
+              <input
+                value={trackingFilter}
+                onChange={(e) => setTrackingFilter(e.target.value)}
+                placeholder="Tracking suchen"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+              />
+            </div>
+
+            <SelectFilter
+              label="Kundennummer"
+              value={customerFilter}
+              options={customerNumbers}
+              onChange={setCustomerFilter}
+            />
+
+            <SelectFilter
+              label="Service-Code"
+              value={serviceFilter}
+              options={serviceNames}
+              onChange={setServiceFilter}
+            />
+
+            <SelectFilter
+              label="Zielland"
+              value={countryFilter}
+              options={countries}
+              onChange={setCountryFilter}
+            />
+
+            <SelectFilter
+              label="Status"
+              value={statusFilter}
+              options={statuses}
+              onChange={setStatusFilter}
+            />
+
+            <div className="flex items-end">
+              <button
+                onClick={clearFilters}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+              >
+                Zurücksetzen
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -124,21 +253,27 @@ export default function InvoiceDetailPage() {
             </thead>
 
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {shipments.length === 0 ? (
+              {filteredShipments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                    Keine Sendungen für diese Rechnung gefunden.
+                  <td
+                    colSpan={8}
+                    className="px-6 py-8 text-center text-gray-500"
+                  >
+                    Keine Sendungen für diese Filter gefunden.
                   </td>
                 </tr>
               ) : (
-                shipments.map((shipment) => {
+                filteredShipments.map((shipment) => {
                   const isOpen = openShipmentId === shipment.id;
 
                   return (
-                    <>
+                    <Fragment key={shipment.id}>
                       <tr
-                        key={shipment.id}
-                        className={isOpen ? "bg-brand-50/60 dark:bg-brand-500/10" : ""}
+                        className={
+                          isOpen
+                            ? "bg-brand-50/60 dark:bg-brand-500/10"
+                            : ""
+                        }
                       >
                         <td className="px-6 py-4">
                           <button
@@ -150,24 +285,33 @@ export default function InvoiceDetailPage() {
                             {shipment.tracking_number}
                           </button>
                         </td>
+
                         <td className="px-6 py-4 text-gray-500">
                           {shipment.ship_date
-                            ? new Date(shipment.ship_date).toLocaleDateString("de-DE")
+                            ? new Date(
+                                shipment.ship_date
+                              ).toLocaleDateString("de-DE")
                             : "-"}
                         </td>
+
                         <td className="px-6 py-4 text-gray-500">Tarif</td>
+
                         <td className="px-6 py-4 text-gray-500">
                           {shipment.destination_country ?? "-"}
                         </td>
+
                         <td className="px-6 py-4 text-gray-500">
                           {shipment.service_name ?? "-"}
                         </td>
+
                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
                           €{Number(shipment.total_amount ?? 0).toFixed(2)}
                         </td>
+
                         <td className="px-6 py-4 text-gray-500">
                           {shipment.customer_number ?? "-"}
                         </td>
+
                         <td className="px-6 py-4">
                           <Badge size="sm" color="warning">
                             {shipment.matching_status ?? "open"}
@@ -177,12 +321,15 @@ export default function InvoiceDetailPage() {
 
                       {isOpen ? (
                         <tr>
-                          <td colSpan={8} className="bg-white px-6 py-6 dark:bg-gray-950">
+                          <td
+                            colSpan={8}
+                            className="bg-white px-6 py-6 dark:bg-gray-950"
+                          >
                             <ShipmentDetail shipment={shipment} />
                           </td>
                         </tr>
                       ) : null}
-                    </>
+                    </Fragment>
                   );
                 })
               )}
@@ -220,7 +367,10 @@ function ShipmentDetail({ shipment }: { shipment: Shipment }) {
 
           <div className="mt-5 grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
             <Info label="Versender" value="-" />
-            <Info label="Empfängerland" value={shipment.destination_country ?? "-"} />
+            <Info
+              label="Empfängerland"
+              value={shipment.destination_country ?? "-"}
+            />
             <Info label="Referenz" value={shipment.customer_number ?? "-"} />
             <Info label="Carrier" value="UPS" />
           </div>
@@ -250,7 +400,11 @@ function ShipmentDetail({ shipment }: { shipment: Shipment }) {
             <Fee label="Beförderung" value={shipment.frt_amount} />
             <Fee label="Treibstoffzuschlag" value={shipment.fsc_amount} />
             <Fee label="Sonstige Gebühren" value={shipment.acc_amount} />
-            <Fee label="Gesamtbetrag für Sendung" value={shipment.total_amount} bold />
+            <Fee
+              label="Gesamtbetrag für Sendung"
+              value={shipment.total_amount}
+              bold
+            />
           </tbody>
         </table>
       </div>
@@ -258,10 +412,45 @@ function ShipmentDetail({ shipment }: { shipment: Shipment }) {
   );
 }
 
+function SelectFilter({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        {label}
+      </label>
+
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+      >
+        <option value="">Alle</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function Summary({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-sm font-semibold text-gray-900 dark:text-white">{label}</p>
+      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+        {label}
+      </p>
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{value}</p>
     </div>
   );
@@ -307,12 +496,30 @@ function Fee({
 }) {
   return (
     <tr>
-      <td className={`px-4 py-4 ${bold ? "font-semibold text-gray-900 dark:text-white" : "text-gray-600 dark:text-gray-400"}`}>
+      <td
+        className={`px-4 py-4 ${
+          bold
+            ? "font-semibold text-gray-900 dark:text-white"
+            : "text-gray-600 dark:text-gray-400"
+        }`}
+      >
         {label}
       </td>
-      <td className={`px-4 py-4 text-right ${bold ? "font-semibold text-gray-900 dark:text-white" : "text-gray-600 dark:text-gray-400"}`}>
+      <td
+        className={`px-4 py-4 text-right ${
+          bold
+            ? "font-semibold text-gray-900 dark:text-white"
+            : "text-gray-600 dark:text-gray-400"
+        }`}
+      >
         €{Number(value ?? 0).toFixed(2)}
       </td>
     </tr>
   );
+}
+
+function unique(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value)))
+  ).sort();
 }
