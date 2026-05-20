@@ -22,20 +22,47 @@ export default function UploadsPage() {
   const [loading, setLoading] = useState(false);
 
   async function loadUploads() {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("uploads")
       .select("id, carrier, file_name, file_path, status, created_at")
       .order("created_at", { ascending: false })
       .limit(20);
 
-    if (!error && data) {
-      setUploads(data);
-    }
+    setUploads(data ?? []);
   }
 
   useEffect(() => {
     loadUploads();
   }, []);
+
+  async function handleDelete(upload: UploadRecord) {
+    const confirmed = window.confirm(
+      `Upload wirklich löschen?\n\n${upload.file_name}`
+    );
+
+    if (!confirmed) return;
+
+    setStatus("Upload wird gelöscht...");
+
+    if (upload.file_path) {
+      await supabase.storage
+        .from("parcelmatch-uploads")
+        .remove([upload.file_path]);
+    }
+
+    const { error } = await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", upload.id);
+
+    if (error) {
+      setStatus(`Löschen fehlgeschlagen: ${error.message}`);
+      return;
+    }
+
+    setStatus("Upload erfolgreich gelöscht.");
+    await loadUploads();
+  }
 
   async function handleUpload() {
     if (!file) {
@@ -97,27 +124,27 @@ export default function UploadsPage() {
           .eq("id", uploadData.id);
 
         setStatus(
-          "Datei gespeichert, aber der Parser hat keine Sendungen erkannt. Bitte Spaltennamen prüfen."
+          "Datei gespeichert, aber der Parser hat keine Sendungen erkannt."
         );
         setLoading(false);
         await loadUploads();
         return;
       }
 
-const shipmentRows = parsedShipments.map((shipment) => ({
-  carrier,
-  upload_id: uploadData.id,
-  tracking_number: shipment.tracking_number,
-  customer_number: shipment.customer_number,
-  service_name: shipment.service_name,
-  destination_country: shipment.destination_country,
-  frt_amount: shipment.frt_amount,
-  fsc_amount: shipment.fsc_amount,
-  acc_amount: shipment.acc_amount,
-  total_amount: shipment.total_amount,
-  matching_status: "open",
-  claim_status: "none",
-}));
+      const shipmentRows = parsedShipments.map((shipment) => ({
+        carrier,
+        upload_id: uploadData.id,
+        tracking_number: shipment.tracking_number,
+        customer_number: shipment.customer_number,
+        service_name: shipment.service_name,
+        destination_country: shipment.destination_country,
+        frt_amount: shipment.frt_amount,
+        fsc_amount: shipment.fsc_amount,
+        acc_amount: shipment.acc_amount,
+        total_amount: shipment.total_amount,
+        matching_status: "open",
+        claim_status: "none",
+      }));
 
       const { error: shipmentError } = await supabase
         .from("shipments")
@@ -146,16 +173,13 @@ const shipmentRows = parsedShipments.map((shipment) => ({
       setFile(null);
       setLoading(false);
       await loadUploads();
-    } catch (parserError) {
+    } catch {
       await supabase
         .from("uploads")
         .update({ status: "parser_failed" })
         .eq("id", uploadData.id);
 
-      console.error(parserError);
-      setStatus(
-        "Datei gespeichert, aber der Parser konnte die Datei nicht verarbeiten."
-      );
+      setStatus("Datei gespeichert, aber der Parser konnte sie nicht verarbeiten.");
       setLoading(false);
       await loadUploads();
     }
@@ -174,8 +198,7 @@ const shipmentRows = parsedShipments.map((shipment) => ({
 
         <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500 dark:text-gray-400">
           Lade UPS-Rechnungen als CSV oder Excel hoch. ParcelMatch speichert die
-          Datei, liest Trackingnummern aus und erzeugt daraus normalisierte
-          Sendungen mit FRT, FSC und ACC.
+          Datei und erzeugt daraus normalisierte Sendungen.
         </p>
       </div>
 
@@ -186,42 +209,27 @@ const shipmentRows = parsedShipments.map((shipment) => ({
           </h2>
 
           <div className="mt-6 space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Carrier
-              </label>
+            <select
+              value={carrier}
+              onChange={(e) => setCarrier(e.target.value)}
+              className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            >
+              <option value="UPS">UPS</option>
+              <option value="FedEx">FedEx</option>
+              <option value="DHL">DHL</option>
+              <option value="Other">Andere</option>
+            </select>
 
-              <select
-                value={carrier}
-                onChange={(e) => setCarrier(e.target.value)}
-                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-              >
-                <option value="UPS">UPS</option>
-                <option value="FedEx">FedEx</option>
-                <option value="DHL">DHL</option>
-                <option value="Other">Andere</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                CSV- oder Excel-Datei auswählen
-              </label>
-
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 shadow-theme-xs file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-600 hover:file:bg-brand-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-              />
-            </div>
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            />
 
             {file ? (
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  Ausgewählte Datei
-                </p>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {file.name}
                 </p>
               </div>
@@ -230,7 +238,7 @@ const shipmentRows = parsedShipments.map((shipment) => ({
             <button
               onClick={handleUpload}
               disabled={loading}
-              className="w-full rounded-lg bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60"
             >
               {loading ? "Verarbeitung läuft..." : "Datei hochladen und parsen"}
             </button>
@@ -248,10 +256,6 @@ const shipmentRows = parsedShipments.map((shipment) => ({
             Upload-Historie
           </h2>
 
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Zuletzt hochgeladene und verarbeitete Dateien aus Supabase.
-          </p>
-
           <div className="mt-5 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-900 dark:text-gray-400">
@@ -260,16 +264,14 @@ const shipmentRows = parsedShipments.map((shipment) => ({
                   <th className="px-4 py-3">Carrier</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Zeitpunkt</th>
+                  <th className="px-4 py-3">Aktion</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {uploads.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400"
-                    >
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
                       Noch keine Uploads vorhanden.
                     </td>
                   </tr>
@@ -299,42 +301,22 @@ const shipmentRows = parsedShipments.map((shipment) => ({
                       <td className="px-4 py-3 text-gray-500 dark:text-gray-400">
                         {new Date(upload.created_at).toLocaleString("de-DE")}
                       </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleDelete(upload)}
+                          className="rounded-lg border border-error-300 px-3 py-2 text-sm font-medium text-error-600 hover:bg-error-50"
+                        >
+                          Löschen
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
-
-          <div className="mt-5 space-y-4">
-            <Step
-              title="1. Datei speichern"
-              text="Datei wird in Supabase Storage abgelegt."
-            />
-            <Step
-              title="2. Parser ausführen"
-              text="CSV/Excel wird im Browser gelesen und in Sendungen gruppiert."
-            />
-            <Step
-              title="3. Sendungen speichern"
-              text="Erkannte Trackingnummern werden in die Tabelle shipments geschrieben."
-            />
-          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Step({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-      <p className="text-sm font-semibold text-gray-900 dark:text-white">
-        {title}
-      </p>
-      <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
-        {text}
-      </p>
     </div>
   );
 }
