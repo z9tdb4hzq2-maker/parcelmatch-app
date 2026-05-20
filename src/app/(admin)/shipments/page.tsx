@@ -14,6 +14,7 @@ type UploadRelation = {
 type Shipment = {
   id: string;
   upload_id: string | null;
+  invoice_number: string | null;
   tracking_number: string;
   customer_number: string | null;
   service_name: string | null;
@@ -42,28 +43,29 @@ export default function ShipmentsPage() {
   async function loadShipments() {
     setLoading(true);
 
-    const { data } = await supabase
-      .from("shipments")
-      .select(`
-        id,
-        upload_id,
-        tracking_number,
-        customer_number,
-        service_name,
-        destination_country,
-        frt_amount,
-        fsc_amount,
-        acc_amount,
-        total_amount,
-        matching_status,
-        claim_status,
-        uploads (
-          id,
-          file_name,
-          carrier,
-          file_path
-        )
-      `)
+   const { data } = await supabase
+  .from("shipments")
+  .select(`
+    id,
+    upload_id,
+    invoice_number,
+    tracking_number,
+    customer_number,
+    service_name,
+    destination_country,
+    frt_amount,
+    fsc_amount,
+    acc_amount,
+    total_amount,
+    matching_status,
+    claim_status,
+    uploads (
+      id,
+      file_name,
+      carrier,
+      file_path
+    )
+  `)
       .order("created_at", { ascending: false })
       .limit(1000);
 
