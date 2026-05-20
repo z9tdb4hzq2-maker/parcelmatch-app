@@ -168,3 +168,4 @@ export async function parseUpsInvoiceFile(file: File) {
 
   throw new Error("Dateityp wird noch nicht unterstützt. Bitte CSV oder Excel hochladen.");
 }
+ 
