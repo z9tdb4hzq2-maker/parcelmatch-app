@@ -77,9 +77,9 @@ export default function ShipmentsPage() {
     loadShipments();
   }, []);
 
-  const invoiceOptions = unique(
-    shipments.map((s) => s.uploads?.[0]?.file_name ?? null)
-  );
+const invoiceOptions = unique(
+  shipments.map((s) => s.invoice_number ?? null)
+);
   const customerOptions = unique(shipments.map((s) => s.customer_number));
   const serviceOptions = unique(shipments.map((s) => s.service_name));
   const countryOptions = unique(shipments.map((s) => s.destination_country));
@@ -87,10 +87,10 @@ export default function ShipmentsPage() {
 
   const filteredShipments = useMemo(() => {
     return shipments.filter((shipment) => {
-      const invoiceName = shipment.uploads?.[0]?.file_name ?? "";
+      const invoiceNumber = shipment.invoice_number ?? "";
 
       return (
-        (!invoiceFilter || invoiceName === invoiceFilter) &&
+        (!invoiceFilter || invoiceNumber === invoiceFilter) &&
         (!customerFilter || shipment.customer_number === customerFilter) &&
         (!serviceFilter || shipment.service_name === serviceFilter) &&
         (!countryFilter || shipment.destination_country === countryFilter) &&
