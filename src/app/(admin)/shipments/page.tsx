@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Badge from "@/components/ui/badge/Badge";
 
+type UploadRelation = {
+  file_name: string;
+  carrier: string;
+};
+
 type Shipment = {
   id: string;
   upload_id: string | null;
@@ -17,10 +22,7 @@ type Shipment = {
   total_amount: number | null;
   matching_status: string | null;
   claim_status: string | null;
-  uploads?: {
-    file_name: string;
-    carrier: string;
-  } | null;
+  uploads: UploadRelation[] | null;
 };
 
 export default function ShipmentsPage() {
@@ -70,27 +72,19 @@ export default function ShipmentsPage() {
   const customers = unique(shipments.map((s) => s.customer_number));
   const services = unique(shipments.map((s) => s.service_name));
   const countries = unique(shipments.map((s) => s.destination_country));
-  const uploads = unique(shipments.map((s) => s.uploads?.file_name ?? null));
+  const uploadFiles = unique(
+    shipments.map((s) => s.uploads?.[0]?.file_name ?? null)
+  );
 
   const filteredShipments = useMemo(() => {
     return shipments.filter((shipment) => {
-      const matchesCustomer =
-        !customerFilter || shipment.customer_number === customerFilter;
-
-      const matchesService =
-        !serviceFilter || shipment.service_name === serviceFilter;
-
-      const matchesCountry =
-        !countryFilter || shipment.destination_country === countryFilter;
-
-      const matchesUpload =
-        !uploadFilter || shipment.uploads?.file_name === uploadFilter;
+      const uploadFileName = shipment.uploads?.[0]?.file_name ?? null;
 
       return (
-        matchesCustomer &&
-        matchesService &&
-        matchesCountry &&
-        matchesUpload
+        (!customerFilter || shipment.customer_number === customerFilter) &&
+        (!serviceFilter || shipment.service_name === serviceFilter) &&
+        (!countryFilter || shipment.destination_country === countryFilter) &&
+        (!uploadFilter || uploadFileName === uploadFilter)
       );
     });
   }, [shipments, customerFilter, serviceFilter, countryFilter, uploadFilter]);
@@ -99,14 +93,17 @@ export default function ShipmentsPage() {
     (sum, s) => sum + Number(s.total_amount ?? 0),
     0
   );
+
   const frt = filteredShipments.reduce(
     (sum, s) => sum + Number(s.frt_amount ?? 0),
     0
   );
+
   const fsc = filteredShipments.reduce(
     (sum, s) => sum + Number(s.fsc_amount ?? 0),
     0
   );
+
   const acc = filteredShipments.reduce(
     (sum, s) => sum + Number(s.acc_amount ?? 0),
     0
@@ -169,7 +166,7 @@ export default function ShipmentsPage() {
           <SelectFilter
             label="Upload / Rechnung"
             value={uploadFilter}
-            options={uploads}
+            options={uploadFiles}
             onChange={setUploadFilter}
           />
 
@@ -232,58 +229,62 @@ export default function ShipmentsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredShipments.map((shipment) => (
-                  <tr key={shipment.id}>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {shipment.uploads?.file_name ?? "-"}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {shipment.uploads?.carrier ?? ""}
-                        </p>
-                      </div>
-                    </td>
+                filteredShipments.map((shipment) => {
+                  const upload = shipment.uploads?.[0] ?? null;
 
-                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                      {shipment.tracking_number}
-                    </td>
+                  return (
+                    <tr key={shipment.id}>
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {upload?.file_name ?? "-"}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {upload?.carrier ?? ""}
+                          </p>
+                        </div>
+                      </td>
 
-                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                      {shipment.customer_number ?? "-"}
-                    </td>
+                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                        {shipment.tracking_number}
+                      </td>
 
-                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                      {shipment.service_name ?? "-"}
-                    </td>
+                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                        {shipment.customer_number ?? "-"}
+                      </td>
 
-                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                      {shipment.destination_country ?? "-"}
-                    </td>
+                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                        {shipment.service_name ?? "-"}
+                      </td>
 
-                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                      €{Number(shipment.frt_amount ?? 0).toFixed(2)}
-                    </td>
+                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                        {shipment.destination_country ?? "-"}
+                      </td>
 
-                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                      €{Number(shipment.fsc_amount ?? 0).toFixed(2)}
-                    </td>
+                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                        €{Number(shipment.frt_amount ?? 0).toFixed(2)}
+                      </td>
 
-                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                      €{Number(shipment.acc_amount ?? 0).toFixed(2)}
-                    </td>
+                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                        €{Number(shipment.fsc_amount ?? 0).toFixed(2)}
+                      </td>
 
-                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                      €{Number(shipment.total_amount ?? 0).toFixed(2)}
-                    </td>
+                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                        €{Number(shipment.acc_amount ?? 0).toFixed(2)}
+                      </td>
 
-                    <td className="px-6 py-4">
-                      <Badge size="sm" color="warning">
-                        {shipment.matching_status ?? "open"}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))
+                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                        €{Number(shipment.total_amount ?? 0).toFixed(2)}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <Badge size="sm" color="warning">
+                          {shipment.matching_status ?? "open"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
