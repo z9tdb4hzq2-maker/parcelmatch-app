@@ -66,6 +66,11 @@ const navItems: NavItem[] = [
 
 const othersItems: NavItem[] = [
   {
+  icon: <PlugInIcon />,
+  name: "Upload Center",
+  path: "/uploads",
+},
+  {
     icon: <PieChartIcon />,
     name: "Billing",
     path: "/billing",
