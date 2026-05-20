@@ -298,6 +298,7 @@ export default function ShipmentsPage() {
             <thead className="border-b border-gray-100 bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
               <tr>
                 <th className="px-6 py-3">Rechnung</th>
+                <th className="px-6 py-3">Rechnungsnr.</th>
                 <th className="px-6 py-3">Carrier</th>
                 <th className="px-6 py-3">Tracking</th>
                 <th className="px-6 py-3">Kundennr.</th>
@@ -336,9 +337,9 @@ export default function ShipmentsPage() {
 
                   return (
                     <tr key={shipment.id}>
-                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                        {upload?.file_name ?? "-"}
-                      </td>
+                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+  {shipment.invoice_number ?? "-"}
+</td>
 
                       <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
                         {upload?.carrier ?? "-"}
