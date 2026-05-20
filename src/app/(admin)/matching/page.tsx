@@ -76,3 +76,4 @@ function Table({ rows }: { rows: string[][] }) {
     </div>
   );
 }
+ 
