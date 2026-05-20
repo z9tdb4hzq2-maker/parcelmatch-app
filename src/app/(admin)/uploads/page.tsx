@@ -1,12 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import Badge from "@/components/ui/badge/Badge";
+
+type UploadRecord = {
+  id: string;
+  carrier: string;
+  file_name: string;
+  file_path: string | null;
+  status: string;
+  created_at: string;
+};
 
 export default function UploadsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [carrier, setCarrier] = useState("UPS");
   const [status, setStatus] = useState("");
+  const [uploads, setUploads] = useState<UploadRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  async function loadUploads() {
+    const { data, error } = await supabase
+      .from("uploads")
+      .select("id, carrier, file_name, file_path, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (!error && data) {
+      setUploads(data);
+    }
+  }
+
+  useEffect(() => {
+    loadUploads();
+  }, []);
 
   async function handleUpload() {
     if (!file) {
@@ -14,9 +42,11 @@ export default function UploadsPage() {
       return;
     }
 
+    setLoading(true);
     setStatus("Upload läuft...");
 
-    const filePath = `${carrier.toLowerCase()}/${Date.now()}-${file.name}`;
+    const safeName = file.name.replaceAll(" ", "_");
+    const filePath = `${carrier.toLowerCase()}/${Date.now()}-${safeName}`;
 
     const { error: storageError } = await supabase.storage
       .from("parcelmatch-uploads")
@@ -24,6 +54,7 @@ export default function UploadsPage() {
 
     if (storageError) {
       setStatus(`Upload fehlgeschlagen: ${storageError.message}`);
+      setLoading(false);
       return;
     }
 
@@ -36,11 +67,14 @@ export default function UploadsPage() {
 
     if (dbError) {
       setStatus(`Datei hochgeladen, aber DB-Eintrag fehlgeschlagen: ${dbError.message}`);
+      setLoading(false);
       return;
     }
 
     setStatus("Datei erfolgreich hochgeladen.");
     setFile(null);
+    setLoading(false);
+    await loadUploads();
   }
 
   return (
@@ -111,9 +145,10 @@ export default function UploadsPage() {
 
             <button
               onClick={handleUpload}
-              className="w-full rounded-lg bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600"
+              disabled={loading}
+              className="w-full rounded-lg bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Datei hochladen
+              {loading ? "Upload läuft..." : "Datei hochladen"}
             </button>
 
             {status ? (
@@ -126,8 +161,57 @@ export default function UploadsPage() {
 
         <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Upload-Verarbeitung
+            Upload-Historie
           </h2>
+
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Zuletzt hochgeladene Dateien aus Supabase.
+          </p>
+
+          <div className="mt-5 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                <tr>
+                  <th className="px-4 py-3">Datei</th>
+                  <th className="px-4 py-3">Carrier</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Zeitpunkt</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {uploads.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400"
+                    >
+                      Noch keine Uploads vorhanden.
+                    </td>
+                  </tr>
+                ) : (
+                  uploads.map((upload) => (
+                    <tr key={upload.id}>
+                      <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
+                        {upload.file_name}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">
+                        {upload.carrier}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge size="sm" color="success">
+                          {upload.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">
+                        {new Date(upload.created_at).toLocaleString("de-DE")}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           <div className="mt-5 space-y-4">
             <Step
@@ -141,10 +225,6 @@ export default function UploadsPage() {
             <Step
               title="3. Parser vorbereiten"
               text="Im nächsten Schritt liest ParcelMatch Trackingnummern, FRT, FSC und ACC aus."
-            />
-            <Step
-              title="4. Dashboard aktualisieren"
-              text="Nach Verarbeitung werden Rechnungen, Sendungen und Claims sichtbar."
             />
           </div>
         </div>
