@@ -131,20 +131,21 @@ export default function UploadsPage() {
         return;
       }
 
-      const shipmentRows = parsedShipments.map((shipment) => ({
-        carrier,
-        upload_id: uploadData.id,
-        tracking_number: shipment.tracking_number,
-        customer_number: shipment.customer_number,
-        service_name: shipment.service_name,
-        destination_country: shipment.destination_country,
-        frt_amount: shipment.frt_amount,
-        fsc_amount: shipment.fsc_amount,
-        acc_amount: shipment.acc_amount,
-        total_amount: shipment.total_amount,
-        matching_status: "open",
-        claim_status: "none",
-      }));
+const shipmentRows = parsedShipments.map((shipment) => ({
+  carrier,
+  upload_id: uploadData.id,
+  invoice_number: shipment.invoice_number,
+  tracking_number: shipment.tracking_number,
+  customer_number: shipment.customer_number,
+  service_name: shipment.service_name,
+  destination_country: shipment.destination_country,
+  frt_amount: shipment.frt_amount,
+  fsc_amount: shipment.fsc_amount,
+  acc_amount: shipment.acc_amount,
+  total_amount: shipment.total_amount,
+  matching_status: "open",
+  claim_status: "none",
+}));
 
       const { error: shipmentError } = await supabase
         .from("shipments")
