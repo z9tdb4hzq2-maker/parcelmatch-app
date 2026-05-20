@@ -1,5 +1,6 @@
 "use client";
 
+import { parseUpsInvoiceFile } from "@/lib/parsers/upsInvoiceParser";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Badge from "@/components/ui/badge/Badge";
@@ -70,7 +71,40 @@ export default function UploadsPage() {
       setLoading(false);
       return;
     }
+try {
+  const parsedShipments = await parseUpsInvoiceFile(file);
 
+  console.log("Parsed Shipments:", parsedShipments);
+
+  if (parsedShipments.length > 0) {
+    const shipmentRows = parsedShipments.map((shipment) => ({
+      carrier,
+      tracking_number: shipment.tracking_number,
+      customer_number: shipment.customer_number,
+      service_name: shipment.service_name,
+      destination_country: shipment.destination_country,
+      frt_amount: shipment.frt_amount,
+      fsc_amount: shipment.fsc_amount,
+      acc_amount: shipment.acc_amount,
+      total_amount: shipment.total_amount,
+      matching_status: "open",
+      claim_status: "none",
+    }));
+
+    const { error: shipmentError } = await supabase
+      .from("shipments")
+      .insert(shipmentRows);
+
+    if (shipmentError) {
+      console.error(shipmentError);
+      setStatus(`Parserfehler: ${shipmentError.message}`);
+      setLoading(false);
+      return;
+    }
+  }
+} catch (parserError) {
+  console.error(parserError);
+}
     setStatus("Datei erfolgreich hochgeladen.");
     setFile(null);
     setLoading(false);
