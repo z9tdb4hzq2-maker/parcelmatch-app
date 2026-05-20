@@ -10,8 +10,6 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.56.0",
-    "xlsx": "^0.18.5",
-"papaparse": "^5.5.3"
     "@fullcalendar/core": "^6.1.19",
     "@fullcalendar/daygrid": "^6.1.19",
     "@fullcalendar/interaction": "^6.1.19",
@@ -26,6 +24,7 @@
     "autoprefixer": "^10.4.22",
     "flatpickr": "^4.6.13",
     "next": "^16.1.6",
+    "papaparse": "^5.5.3",
     "react": "^19.2.0",
     "react-apexcharts": "^1.8.0",
     "react-dnd": "^16.0.1",
@@ -33,10 +32,11 @@
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8",
     "swiper": "^11.2.10",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@types/papaparse": "^5.3.16"
+    "@types/papaparse": "^5.3.16",
     "@eslint/eslintrc": "^3.3.1",
     "@svgr/webpack": "^8.1.0",
     "@types/node": "^20.19.25",
@@ -60,4 +60,3 @@
     }
   }
 }
- 
