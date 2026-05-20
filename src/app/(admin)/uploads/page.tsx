@@ -43,8 +43,15 @@ export default function UploadsPage() {
       return;
     }
 
+    const extension = file.name.split(".").pop()?.toLowerCase();
+
+    if (!["csv", "xlsx", "xls"].includes(extension ?? "")) {
+      setStatus("Bitte nur CSV- oder Excel-Dateien hochladen.");
+      return;
+    }
+
     setLoading(true);
-    setStatus("Upload läuft...");
+    setStatus("Datei wird hochgeladen...");
 
     const safeName = file.name.replaceAll(" ", "_");
     const filePath = `${carrier.toLowerCase()}/${Date.now()}-${safeName}`;
@@ -59,56 +66,98 @@ export default function UploadsPage() {
       return;
     }
 
-    const { error: dbError } = await supabase.from("uploads").insert({
-      carrier,
-      file_name: file.name,
-      file_path: filePath,
-      status: "uploaded",
-    });
+    setStatus("Datei gespeichert. Parser startet...");
+
+    const { data: uploadData, error: dbError } = await supabase
+      .from("uploads")
+      .insert({
+        carrier,
+        file_name: file.name,
+        file_path: filePath,
+        status: "uploaded",
+      })
+      .select("id")
+      .single();
 
     if (dbError) {
-      setStatus(`Datei hochgeladen, aber DB-Eintrag fehlgeschlagen: ${dbError.message}`);
+      setStatus(
+        `Datei hochgeladen, aber DB-Eintrag fehlgeschlagen: ${dbError.message}`
+      );
       setLoading(false);
       return;
     }
-try {
-  const parsedShipments = await parseUpsInvoiceFile(file);
 
-  console.log("Parsed Shipments:", parsedShipments);
+    try {
+      const parsedShipments = await parseUpsInvoiceFile(file);
 
-  if (parsedShipments.length > 0) {
-    const shipmentRows = parsedShipments.map((shipment) => ({
-      carrier,
-      tracking_number: shipment.tracking_number,
-      customer_number: shipment.customer_number,
-      service_name: shipment.service_name,
-      destination_country: shipment.destination_country,
-      frt_amount: shipment.frt_amount,
-      fsc_amount: shipment.fsc_amount,
-      acc_amount: shipment.acc_amount,
-      total_amount: shipment.total_amount,
-      matching_status: "open",
-      claim_status: "none",
-    }));
+      if (parsedShipments.length === 0) {
+        await supabase
+          .from("uploads")
+          .update({ status: "parsed_no_shipments" })
+          .eq("id", uploadData.id);
 
-    const { error: shipmentError } = await supabase
-      .from("shipments")
-      .insert(shipmentRows);
+        setStatus(
+          "Datei gespeichert, aber der Parser hat keine Sendungen erkannt. Bitte Spaltennamen prüfen."
+        );
+        setLoading(false);
+        await loadUploads();
+        return;
+      }
 
-    if (shipmentError) {
-      console.error(shipmentError);
-      setStatus(`Parserfehler: ${shipmentError.message}`);
+      const shipmentRows = parsedShipments.map((shipment) => ({
+        carrier,
+        tracking_number: shipment.tracking_number,
+        customer_number: shipment.customer_number,
+        service_name: shipment.service_name,
+        destination_country: shipment.destination_country,
+        frt_amount: shipment.frt_amount,
+        fsc_amount: shipment.fsc_amount,
+        acc_amount: shipment.acc_amount,
+        total_amount: shipment.total_amount,
+        matching_status: "open",
+        claim_status: "none",
+      }));
+
+      const { error: shipmentError } = await supabase
+        .from("shipments")
+        .insert(shipmentRows);
+
+      if (shipmentError) {
+        await supabase
+          .from("uploads")
+          .update({ status: "parser_failed" })
+          .eq("id", uploadData.id);
+
+        setStatus(`Parserfehler: ${shipmentError.message}`);
+        setLoading(false);
+        await loadUploads();
+        return;
+      }
+
+      await supabase
+        .from("uploads")
+        .update({ status: "parsed" })
+        .eq("id", uploadData.id);
+
+      setStatus(
+        `Datei erfolgreich verarbeitet. ${parsedShipments.length} Sendungen erkannt und gespeichert.`
+      );
+      setFile(null);
       setLoading(false);
-      return;
+      await loadUploads();
+    } catch (parserError) {
+      await supabase
+        .from("uploads")
+        .update({ status: "parser_failed" })
+        .eq("id", uploadData.id);
+
+      console.error(parserError);
+      setStatus(
+        "Datei gespeichert, aber der Parser konnte die Datei nicht verarbeiten."
+      );
+      setLoading(false);
+      await loadUploads();
     }
-  }
-} catch (parserError) {
-  console.error(parserError);
-}
-    setStatus("Datei erfolgreich hochgeladen.");
-    setFile(null);
-    setLoading(false);
-    await loadUploads();
   }
 
   return (
@@ -119,13 +168,13 @@ try {
         </p>
 
         <h1 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
-          Rechnungen, Verträge und Carrier-Dateien hochladen
+          CSV- und Excel-Rechnungsdaten hochladen
         </h1>
 
         <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500 dark:text-gray-400">
-          Lade UPS-Rechnungen, CSV-/Excel-Dateien oder Vertragsdokumente hoch.
-          Die Dateien werden sicher in Supabase Storage gespeichert und später
-          vom Parser verarbeitet.
+          Lade UPS-Rechnungen als CSV oder Excel hoch. ParcelMatch speichert die
+          Datei, liest Trackingnummern aus und erzeugt daraus normalisierte
+          Sendungen mit FRT, FSC und ACC.
         </p>
       </div>
 
@@ -155,12 +204,12 @@ try {
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Datei auswählen
+                CSV- oder Excel-Datei auswählen
               </label>
 
               <input
                 type="file"
-                accept=".csv,.xlsx,.xls,.pdf"
+                accept=".csv,.xlsx,.xls"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 shadow-theme-xs file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-600 hover:file:bg-brand-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
               />
@@ -182,7 +231,7 @@ try {
               disabled={loading}
               className="w-full rounded-lg bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? "Upload läuft..." : "Datei hochladen"}
+              {loading ? "Verarbeitung läuft..." : "Datei hochladen und parsen"}
             </button>
 
             {status ? (
@@ -199,7 +248,7 @@ try {
           </h2>
 
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Zuletzt hochgeladene Dateien aus Supabase.
+            Zuletzt hochgeladene und verarbeitete Dateien aus Supabase.
           </p>
 
           <div className="mt-5 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
@@ -233,7 +282,16 @@ try {
                         {upload.carrier}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge size="sm" color="success">
+                        <Badge
+                          size="sm"
+                          color={
+                            upload.status === "parsed"
+                              ? "success"
+                              : upload.status === "parser_failed"
+                              ? "error"
+                              : "warning"
+                          }
+                        >
                           {upload.status}
                         </Badge>
                       </td>
@@ -253,12 +311,12 @@ try {
               text="Datei wird in Supabase Storage abgelegt."
             />
             <Step
-              title="2. Upload registrieren"
-              text="Metadaten werden in der Tabelle uploads gespeichert."
+              title="2. Parser ausführen"
+              text="CSV/Excel wird im Browser gelesen und in Sendungen gruppiert."
             />
             <Step
-              title="3. Parser vorbereiten"
-              text="Im nächsten Schritt liest ParcelMatch Trackingnummern, FRT, FSC und ACC aus."
+              title="3. Sendungen speichern"
+              text="Erkannte Trackingnummern werden in die Tabelle shipments geschrieben."
             />
           </div>
         </div>
